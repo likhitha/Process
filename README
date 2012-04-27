@@ -1,1 +1,24 @@
-In Class Assignment - Week 12 
+Homework Assignment #6 
+
+DISCUSSION: 
+1.Is this a good use of Object Oriented design? Why or why not?
+Yes, this is a good of using Object Oriented Programming as we're modularizing the code and this is one of the fundamental characteristic of the Unix Philosophy. 
+
+2.There are different possible desired behaviors for what happens when the Process object goes out of scope:
+
+    The Process object waits until the child process has finished on its own (this has the effect of stalling the main program at the point at which the process object goes out of scope).
+
+    The Process object waits for a specified time period for the child to finish on its own and then sends a TERM or KILL signal.
+
+    The Process object sends a TERM or KILL signal imediately if the child process has not already finished at the time the Process destructor is called (when the object goes out of scope)
+
+    ...
+
+How might you modify your Process class to allow the programmer an easy way to use different destruction policies?
+
+The process class could have a configuration option when invoking the constructor which will specify the kind of behavior to expect when the object is deconstructed. (like an enum of some sort).
+
+3.How might you handle the case when a child process terminates before the parent process destroies it? I.e. how might the parent be signaled when a child terminates, and then read in any data it has written to its output.
+We could set up an exit flag that would update the information for the parent. 
+
+

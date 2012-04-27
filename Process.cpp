@@ -7,12 +7,18 @@ Process::Process(const std::vector<char*>& args, bool verbose) :
 	m_writepipe {-1,-1},
 	m_readpipe {-1,-1}
 {
+
+    if(args[1]==0)
+    {
+        throw "Not enough arguments!";
+    }
 	// Pipe used to write from parent to
 	// child process
 	// Parent ==> Child
 	if(pipe(m_writepipe) == -1)
 	{
-		perror("Error Process pipe");
+        perror("pipe");
+		throw std::string("Pipe");
 	}
 	
 	// Pipe used to read from child to 
@@ -20,16 +26,16 @@ Process::Process(const std::vector<char*>& args, bool verbose) :
 	// Parent <== Child
 	if(pipe(m_readpipe) == -1)
 	{
-		perror("Error Process pipe");
-		exit(EXIT_FAILURE);
+        perror("pipe");
+		throw std::string("Pipe");
 	}
 	
 	m_pid = fork();
 	
 	if(m_pid < 0)
 	{
-		perror("Error Process fork");
-		exit(EXIT_FAILURE);
+		perror("Process fork");
+        throw std::string("Process fork");
 	}
 	else if(m_pid == 0)
 	{
@@ -37,36 +43,24 @@ Process::Process(const std::vector<char*>& args, bool verbose) :
 
 		// Closing the write part of the
 		// Parent ==> Child pipe
-		close(m_writepipe[1]);
+		close(PARENT_WRITE);
 		
 		// Closing the read part of the
 		// Parent <== Child pipe
-		close(m_readpipe[0]);
-	
-		// Ideally you would want to include some sort of
-		// of the following code to write to the parent
-		// process
-		//
-		// write(m_readpipe[1], ...);
-		//
-		// and some sort of the following code to read from
-		// the parent process
-		//
-		// while(read(m_writepipe[0], ...) > 0)	
-		
-		execvp(args[0], const_cast<char**>(&args[0]));
-		
-		// Closes pipes between the Parent
-		// and Child process
-		// (from the Child prespective)
-		// Assuming this will be called
-		// when the kill command is
-		// issued in the ~Process(). 
-		close(m_writepipe[0]);
-		close(m_readpipe[1]);
+		close(PARENT_READ);
 
-		perror("Error Process execvp");
-		_exit(EXIT_FAILURE);
+        dup2(CHILD_WRITE,1); close(CHILD_WRITE);
+        dup2(CHILD_READ,0); close(CHILD_READ);
+		
+        std::vector<const char*> args;
+        std::transform(argss.begin(),argss.end(), std::back_inserter(args), [](std::string s)
+        {
+            return s.c_str();
+        } );
+        args.push_back( NULL );
+        execvp(args[0], const_cast<char**>(&args[0]));
+        perror("Process execvp");
+        throw std::string("Error Process execvp");
 	}
 	else
 	{
@@ -82,40 +76,35 @@ Process::Process(const std::vector<char*>& args, bool verbose) :
 
 		if (verbose)
 		{
-			cout << "Process " << 
-				    m_name << 
-		         ": forked m_pid " << 	
-				     m_pid << endl;
+			cout << "Process " <<m_name << ": forked m_pid " <<m_pid << endl;
 		}
 	}
 };
 
 Process::~Process()
 {
-	int status;
 
-	if(verbose)
-    	{
-        	cout << "Process: Destructor verbose mode on" << endl; 
-        	cout << "Process: Killing Process" << endl;
-    	}
+    if (verbose)
+        std::cerr << "Process " << m_name << ": Entering ~Process()" << std::endl;
+    int status;
+    pid_t pid = waitpid(m_pid, &status, 0);
+    if (pid < 0)
+    {
+        perror("~Process waitpid");
+        throw std::string("Error ~Process waitpid");
+    }
+
+    if (verbose)
+        std::cerr << "Process " << m_name << ": Leaving ~Process()" << std::endl;
     	
 	// Close the two pipes between the 
 	// parent and child process 
 	// (from the parent process prespective)
-	close(m_readpipe[0]);
-	close(m_writepipe[1]);
+	close(PARENT_READ );
+	close(PARENT_WRITE);
 	
 	// Kill the child process
-	kill(m_pid, SIGTERM);
-	
-	pid_t pid = waitpid(m_pid, &status, 0);
-	
-	if(pid < 0)
-	{	
-		perror("Error ~Process waitpid");
-		exit(EXIT_FAILURE);
-	}		 
+	kill(m_pid, SIGTERM);	 
 } 
 
 void Process::write(const std::string& str)
@@ -126,7 +115,9 @@ void Process::write(const std::string& str)
 std::string Process::read(void)
 {
 	string buffer = "test";
-	
 	while(read(m_readpipe[1], buffer.c_str(), 1) > 0); 
 	return buffer;
+    //For further error handling, we could check if the buffer size is less than the allocated space and returnt he errro code EFAULT
+    //We could check for bad file descriptors 
+    //If its an unsuitable file, we could return an EINVAL 
 }

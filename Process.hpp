@@ -7,7 +7,7 @@
 #include <vector>
 
 #define	PARENT_READ     m_readpipe[0]
-#define	CHILD_WRITE	m_readpipe[1]
+#define	CHILD_WRITE	    m_readpipe[1]
 #define CHILD_READ      m_writepipe[0]
 #define PARENT_WRITE	m_writepipe[1]
 
